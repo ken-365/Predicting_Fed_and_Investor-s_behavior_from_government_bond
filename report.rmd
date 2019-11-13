@@ -1,0 +1,100 @@
+---
+title: "Predicting Financial behavior"
+author: "PK (Kasidit) Ratanavijai"
+date: "10/25/2019"
+output: github_document
+---
+
+```{r 1, include=FALSE}
+# install if require
+if(!require(tidyverse)) install.packages("tidyverse") 
+if(!require(kableExtra)) install.packages("kableExtra")
+if(!require(tidyr)) install.packages("tidyr")
+if(!require(tidyverse)) install.packages("tidyverse")
+if(!require(stringr)) install.packages("stringr")
+if(!require(forcats)) install.packages("forcats")
+if(!require(ggplot2)) install.packages("ggplot2")
+if(!require(GGally)) install.packages("GGally")
+if(!require(corrgram)) install.packages("corrgram")
+if(!require(fastR2)) install.packages("fastR2")
+if(!require(mosaic)) install.packages("mosaic")
+# Loading all libraries
+
+library(dplyr)
+library(tidyverse)
+library(kableExtra)
+library(tidyr)
+library(stringr)
+library(forcats)
+library(ggplot2)
+library(fastR2)
+library(mosaic)
+library(janitor)
+library(lubridate)
+library(corrgram)
+library(GGally)
+
+```
+
+```{r 2, include=FALSE}
+#load data
+dataPath = "C:/Users/PK/Downloads/Statfinal"
+
+AssignmentData<-
+  read.csv(file=paste(dataPath,"datastat.csv",sep="/"),
+           row.names=1,header=TRUE,sep=",")
+```
+
+
+# Project objectives
+
+Predicting cycles when FED implemented easing policy (reducing rates) or tightening policy (increasing rates) and Investor's behavior towards long term and short term financial assest by using "DAILY TREASURY YIELD CURVE RATES" from year January 1981 to June 2014 total of 33 years.
+
+The data set composed of date, rate of US Generic Government teasury  3 months yield, 6 months, 2 years, 3 years, 5 years, 10 years and 30 years, and whether FED was using easing policy (reducing rates) or tightening policy (increasing rates) at the time.
+
+
+It is public data set and can be found on *treasury.gov* (https://home.treasury.gov/policy-issues/financing-the-government/interest-rate-statistics)
+
+# Data exploration
+
+**Data Summary**
+
+```{r echo=FALSE}
+summary(AssignmentData)
+```
+
+**Structure of the data set**
+
+- **USGG3M** ```<numeric>``` rate of US Generic Government teasury  3 months yield
+- **USGG6M** ```<numeric>``` rate of US Generic Government teasury  6 months yield
+- **USGG2YR** ```<numeric>``` rate of US Generic Government teasury  2 years yield
+- **USGG5YR** ```<numeric>``` rate of US Generic Government teasury  3 years yield
+- **USGG10YR** ```<numeric>``` rate of US Generic Government teasury  5 years yield
+- **USGG30YR** ```<numeric>``` rate of US Generic Government teasury  10 years yield
+- **Output1** ```<numeric>``` sssssxxxx
+- **Easing** ```<int>``` whether FED was using easing policy (reducing rates)
+- **Tightening** ```<int>``` whether FED was using tightening policy at the time (increasing rates)
+
+First 7 variables (input variables) are daily records of the US Treasury yields to maturity. The last two variables mark periods when FED implemented easing policy (reducing rates) or tightening policy (increasing rates).
+
+**Header of the training data set**
+
+```{r 3, echo=FALSE}
+head(AssignmentData)
+```
+
+**History of Interest Rates**
+
+```{r 4, echo=FALSE}
+matplot(AssignmentData[,-c(8,9,10)],type='l',ylab="Interest Rates",
+        main="History of Interest Rates",xlab="Index")
+```
+
+**History of Interest Rates and Output**
+
+```{r 5, echo=FALSE}
+matplot(AssignmentData[,-c(9,10)],type='l',ylab="Interest Rates",
+        main="History of Interest Rates and Output",xlab="Index")
+```
+
+
