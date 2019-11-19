@@ -7,6 +7,7 @@ output: github_document
 
 ```{r 1, include=FALSE}
 # install if require
+if(!require(zoo)) install.packages("zoo") 
 if(!require(tidyverse)) install.packages("tidyverse") 
 if(!require(kableExtra)) install.packages("kableExtra")
 if(!require(tidyr)) install.packages("tidyr")
@@ -19,7 +20,7 @@ if(!require(corrgram)) install.packages("corrgram")
 if(!require(fastR2)) install.packages("fastR2")
 if(!require(mosaic)) install.packages("mosaic")
 # Loading all libraries
-
+library(zoo)
 library(dplyr)
 library(tidyverse)
 library(kableExtra)
@@ -97,4 +98,380 @@ matplot(AssignmentData[,-c(9,10)],type='l',ylab="Interest Rates",
         main="History of Interest Rates and Output",xlab="Index")
 ```
 
+# Data preparation
 
+**from Data exploration we can see that there are NAs in Easing and Tightening**
+Make column "Tightening" equal to 1 during tightening periods and 0 otherwise.
+
+
+```{r include=FALSE}
+AssignmentDataLogistic<-AssignmentData[,c(1:7,10)]
+All.NAs<-is.na(AssignmentData[,9])&is.na(AssignmentData[,10]) # neither tightening nor easing
+noTightening<-is.na(AssignmentData[,10]) 
+AssignmentDataLogistic[noTightening,'Tightening']<-0 # replace NAs with 0
+cat("Before: ",dim(AssignmentDataLogistic),"\n") # before
+AssignmentDataLogistic<-AssignmentDataLogistic[!All.NAs,]
+AssignmentDataLogistic[c(275:284),]
+```
+
+
+# Modelling 
+
+## Linear regression model
+
+**Fit 7  regression models, in each of them input variable of interest rate is response and Output1 is the single predictor**
+
+```{r include=FALSE}
+# need to assign new name to match with Output1 name in file newPredictor else does not work
+Output1 = AssignmentData$Output1
+
+```
+
+
+```{r echo=TRUE}
+#Fit 7 simple regression models
+mUSGG3M = lm(AssignmentData$USGG3M ~ Output1)
+mUSGG6M = lm(AssignmentData$USGG6M ~ Output1)
+mUSGG2YR = lm(AssignmentData$USGG2YR ~ Output1)
+mUSGG3YR = lm(AssignmentData$USGG3YR ~ Output1)
+mUSGG5YR = lm(AssignmentData$USGG5YR ~ Output1)
+mUSGG10YR = lm(AssignmentData$USGG10YR ~ Output1)
+mUSGG30YR = lm(AssignmentData$USGG30YR ~ Output1)
+```
+
+Here is significance of the estimated parameters and the model **mUSGG3M** as a whole, proportion of explained correlation.
+
+```{r echo=FALSE}
+c(Total.Variance=var(AssignmentData[,8]),Unexplained.Variance=summary(mUSGG3M)$sigma^2)
+```
+
+and coefficient
+
+```{r echo=FALSE}
+coef(mUSGG3M)
+```
+
+Plot the output variable together with the fitted values.
+
+```{r 9, echo=FALSE}
+matplot(AssignmentData[,1],type="l",col="blue",xaxt="n")
+lines(mUSGG3M$fitted.values,col="orange")
+```
+
+Collect all slopes and intercepts in one matrix called simpleRegressionResults and keep this matrix
+```{r echo=FALSE}
+simpleRegressionResults =data.frame()
+s =rbind (USGG3M=mUSGG3M$coefficients,USGG6M=mUSGG6M$coefficients,USGG2YR=mUSGG2YR$coefficients,USGG3Y=mUSGG3YR$coefficients,USGG3Y=mUSGG3YR$coefficients,USGG5Y=mUSGG5YR$coefficients,USGG10Y=mUSGG10YR$coefficients,USGG30Y=mUSGG30YR$coefficients)
+simpleRegressionResults = data.frame(s)
+names(simpleRegressionResults) = c('regrIntercepts','Slopes')
+simpleRegressionResults
+```
+
+
+Use fitted models for newPredictor with file 'Output_for_prediction.csv'
+
+```{r include=FALSE}
+newPredictor = read.csv('Output_for_prediction.csv')
+```
+
+
+```{r echo=TRUE}
+#Use function predict() to predict 7 interest rates for the value of newPredictor
+prUSGG3M=predict(mUSGG3M,newdata=newPredictor)
+prUSGG6M=predict(mUSGG6M,newdata=newPredictor)
+prUSGG2YR=predict(mUSGG2YR,newdata=newPredictor)
+prUSGG3YR=predict(mUSGG3YR,newdata=newPredictor)
+prUSGG5YR=predict(mUSGG5YR,newdata=newPredictor)
+prUSGG10YR=predict(mUSGG10YR,newdata=newPredictor)
+prUSGG30YR=predict(mUSGG30YR,newdata=newPredictor)
+```
+
+**examine predicted.values**
+
+```{r echo=FALSE}
+c(`prUSGG3M`, `prUSGG6M`, `prUSGG2YR`, `prUSGG3YR`, `prUSGG5YR`, `prUSGG10YR`, `prUSGG30YR`)
+```
+
+## Logistic regression model
+
+**Plot the data and the binary output variable representing easing (0) and tightening (1) periods.**
+
+```{r 15, echo=FALSE}
+matplot(AssignmentDataLogistic[,-8],type="l",ylab="Data and Binary Fed Mode",ylim=c(-5,20))
+lines(AssignmentDataLogistic[,8]*20,col="blue",lwd=3)
+legend("topright",legend=c("response"),lty=1,col=c("blue"),lwd=3)
+```
+
+Estimate logistic regression with 3M yields as predictor and Tightening as output.
+
+
+```{r echo=TRUE}
+LogisticModel_3M<-glm(Tightening~USGG3M,family=binomial(link=logit),AssignmentDataLogistic)
+summary(LogisticModel_3M)
+```
+
+Plot the data, the response and the predicted probability of tightening.
+
+```{r 16, echo=FALSE}
+matplot(AssignmentDataLogistic[,-8],type="l",ylab="Data and Fitted Values",ylim=c(-5,25))
+lines(AssignmentDataLogistic[,8]*20,col="blue",lwd=3)
+lines(LogisticModel_3M$fitted.values*20,col="orange",lwd=3)
+legend("topright",legend=c("prediction","response"),lty=1,col=c("orange","blue"),lwd=3)
+```
+
+Now use all inputs as predictors for logistic regression. Name the model LogisticModel_All.
+
+```{r echo=TRUE}
+LogisticModel_All = glm(Tightening~USGG3M+USGG6M+USGG2YR+USGG3YR +USGG5YR +USGG10YR +USGG30YR  ,family=binomial(link=logit),AssignmentDataLogistic)
+summary(LogisticModel_All)
+```
+
+Plot the data, predicted probability of tightening and the response.
+
+```{r 20, echo=FALSE}
+matplot(AssignmentDataLogistic[,-8],type="l",ylab="Results of Logistic Regression",ylim=c(-5,20))
+lines(AssignmentDataLogistic[,8]*20,col="blue",lwd=3)
+lines(LogisticModel_All$fitted.values*20,col="orange",lwd=3)
+legend("topright",legend=c("prediction","response"),lty=1,
+       col=c("orange","blue"),lwd=3)
+```
+
+Calculate and plot log-odds and probabilities. Compare probabilities with fitted values.
+```{r echo=TRUE}
+# Calculate odds
+Log.Odds<-predict(LogisticModel_All)     # predict log-odds
+Probabilities<-1/(exp(-Log.Odds)+1)      # predict probabilities
+```
+
+
+```{r 26, echo=FALSE}
+# Plot log-odds and response
+plot(Log.Odds,type="l",ylab="Response & Log-Odds",lwd=3,col="blue",
+     main="Log-odds and Response")
+lines(AssignmentDataLogistic[,8],col="orange",lwd=3)
+legend("topright",legend=c("Log-Odds","Response"),
+       lty=1,lwd=3,col=c("blue","orange"))
+```
+
+Use logistic regression to predict probabilities of tightening for new input data.
+```{r echo=TRUE}
+# New Predictors
+(newPredictors<-unname(unlist(AssignmentDataLogistic[1,1:7])))
+```
+
+
+```{r include=FALSE}
+(newPredictors<-unname(unlist(AssignmentDataLogistic[1,1:7])))
+newPredictors
+#Make it a data frame with the same component names as in the training data:
+(newPredictors<-setNames(newPredictors,colnames(AssignmentDataLogistic[1:7])))
+(newPredictors<-as.data.frame(t(newPredictors)))
+newPredictors
+#Use the created data frame as newdata in function predict() with type response.
+newPredictors
+predict(LogisticModel_All,newdata=newPredictors,type='response')
+#Course Assignment. Step 2.
+#Read the data from StatisticalAnalysis_Course_Assignment_2_Data.rds.
+data2 <- readRDS(paste(dataPath,'StatisticalAnalysis_Course_Assignment_2_Data.rds',sep = '/'))
+data2[[1]]
+data3 = newPredictors
+data3[1:7]=data2[[1]]
+```
+
+```{r echo=TRUE}
+predict(LogisticModel_All,newdata=data3,type='response')
+summary(LogisticModel_All)
+```
+
+## Comparing regression models
+
+**Compare linear regression models with Output1 as response and different combinations of predictors.**
+
+```{r include=FALSE}
+AssignmentDataRegressionComparison<-AssignmentData[,-c(9,10)]
+
+```
+
+
+Comparing Full model with null model
+
+```{r echo=TRUE}
+#complete model 
+model_all = lm(Output1~USGG3M+USGG6M+USGG2YR+USGG3YR +USGG5YR +USGG10YR +USGG30YR,AssignmentDataRegressionComparison)
+#null model
+model_null = lm(Output1~1,AssignmentDataRegressionComparison)
+```
+
+Compare AIC Value
+```{r echo=TRUE}
+anova(model_all,model_null)
+c(Full=AIC(model_all),Null=AIC(model_null))
+```
+
+Lets compare nested model using anove, small model (Predict output with USGG3M) with big model (Predict output with USGG3M+ other rates)
+```{r echo=TRUE}
+#Given US Treasury rate = USGG3M
+#Let the given rate be testRate. Let additionalRate be one of the remaining rates
+
+mUSGG3M.2 = lm(Output1 ~ USGG3M , AssignmentData)
+mUSGG6M.2 = lm(Output1 ~ USGG3M+USGG6M , AssignmentData)
+mUSGG2YR.2 = lm(Output1 ~ USGG3M+USGG2YR , AssignmentData)
+mUSGG3YR.2 = lm(Output1 ~ USGG3M+USGG3YR , AssignmentData)
+mUSGG5YR.2 = lm(Output1 ~ USGG3M+USGG5YR , AssignmentData)
+mUSGG10YR.2 = lm(Output1 ~ USGG3M+USGG10YR , AssignmentData)
+mUSGG30YR.2 = lm(Output1 ~ USGG3M+USGG30YR , AssignmentData)
+
+SumSq = c(anova(mUSGG3M.2,mUSGG6M.2)$'Sum of Sq'[2],
+anova(mUSGG3M.2,mUSGG2YR.2)$'Sum of Sq'[2],
+anova(mUSGG3M.2,mUSGG3YR.2)$'Sum of Sq'[2],
+anova(mUSGG3M.2,mUSGG5YR.2)$'Sum of Sq'[2],
+anova(mUSGG3M.2,mUSGG10YR.2)$'Sum of Sq'[2],
+anova(mUSGG3M.2,mUSGG30YR.2)$'Sum of Sq'[2])
+
+AIC = c(
+AIC(mUSGG6M.2),
+AIC(mUSGG2YR.2),
+AIC(mUSGG3YR.2),
+AIC(mUSGG5YR.2),
+AIC(mUSGG10YR.2),
+AIC(mUSGG30YR.2))
+AIC
+```
+
+Compare SumSq and AIC explain by bigger model 
+
+```{r}
+SumSq
+AIC
+```
+
+## Rolling Window Analysis
+
+Set window width and window shift parameters for rolling window.
+```{r echo=TRUE}
+Window.width<-20; Window.shift<-5
+```
+
+
+Find mean for rolling window.
+```{r echo=TRUE}
+# Means
+all.means<-rollapply(AssignmentDataRegressionComparison,width=Window.width,
+                     by=Window.shift,by.column=TRUE, mean)
+head(all.means)
+```
+Plot the rolling means with the original 3-month rates data
+
+```{r}
+Count<-1:dim(AssignmentDataRegressionComparison)[1]
+Rolling.window.matrix<-rollapply(Count,width=Window.width,by=Window.shift,by.column=FALSE,FUN=function(z) z)
+```
+
+```{r 55, echo=FALSE}
+# Find middle of each window
+Points.of.calculation<-Rolling.window.matrix[,10]    
+Points.of.calculation[1:10]
+
+Means.forPlot<-rep(NA,dim(AssignmentDataRegressionComparison)[1])
+Means.forPlot[Points.of.calculation]<-all.means[,1]
+cbind(1:25,Means.forPlot[1:25])
+
+plot(AssignmentDataRegressionComparison[,1],type="l",col="blue",lwd=2,
+     ylab="Interest Rate & Rolling Mean", main="Rolling Mean of USGG3M")
+points(Means.forPlot,col="orange",pch=1)
+legend("topright",legend=c("USGG3M","Rolling Mean"),col=c("blue","orange"),lwd=2)
+```
+
+
+
+Use rolling apply to find Coefficients, R.squared, P-value, and predited value for any specific date.
+```{r include=FALSE}
+rolling.dates = AssignmentDataRegressionComparison[1,]
+for (i in 2:nrow(AssignmentDataRegressionComparison)) {
+  result = AssignmentDataRegressionComparison[i,] - AssignmentDataRegressionComparison[i-1,]
+  rolling.dates = rbind(rolling.dates,result)
+}
+rolling.dates = rolling.dates[-1,]
+head(rolling.dates)
+#head(round(rolling.sd,3))
+rolling.dates<-rollapply(AssignmentDataRegressionComparison[-1,],
+                         width=Window.width,by=Window.shift,
+                         by.column=FALSE,FUN=function(z) rownames(z))
+
+# Rolling lm coefficients
+Coefficients<-rollapply(AssignmentDataRegressionComparison,
+                        width=Window.width,
+                        by=Window.shift,by.column=FALSE,
+                        FUN=function(z) coef(lm(Output1~USGG3M+USGG5YR+USGG30YR,
+                                                data=as.data.frame(z))))
+
+rolling.dates<-rollapply(AssignmentDataRegressionComparison[,1:8],
+                         width=Window.width,by=Window.shift,by.column=FALSE,
+                         FUN=function(z) rownames(z))
+
+rownames(Coefficients)<-rolling.dates[,10]
+head(Coefficients)
+
+idxDate<-match("9/22/2005",rolling.dates[,10])
+cfnts = c(Coefficients[idxDate,])
+cfnts
+##Find R-squared values of rolling-window-fit linear models:
+# R-squared
+r.squared<-rollapply(AssignmentDataRegressionComparison,
+                     width=Window.width,by=Window.shift,by.column=FALSE,
+                     FUN=function(z) summary(lm(Output1~USGG3M+USGG5YR+USGG30YR,
+                                                data=as.data.frame(z)))$r.squared)
+r.squared<-data.frame(Date=rolling.dates[,10],R2=r.squared)
+
+head(r.squared)
+testDate="9/22/2005"
+idxDate<-match("9/22/2005",rolling.dates[,10])
+rsqrd = c(r.squared[idxDate,2])
+
+rsqrd
+#Analyze the rolling p-values of slopes. What were dates of highest p-values (most insignificant slopes)?
+# P-values
+# P-values
+Pvalues<-rollapply(AssignmentDataRegressionComparison,width=Window.width,
+                   by=Window.shift,by.column=FALSE,
+                   FUN=function(z) summary(lm(Output1~USGG3M+USGG5YR+USGG30YR,                                                                              data=as.data.frame(z)))$coefficients[,4])
+rownames(Pvalues)<-rolling.dates[,10]
+Pvalues[1:6,]
+
+pvls=c(Pvalues[idxDate,])
+pvls
+#find fitted value
+#test fitted
+fitted<-rollapply(AssignmentDataRegressionComparison,
+                     width=Window.width,by=Window.shift,by.column=FALSE,
+                     FUN=function(z) fitted(lm(Output1~USGG3M+USGG5YR+USGG30YR,
+                                                data=as.data.frame(z))))
+fitted
+rownames(fitted) = rolling.dates[,10]
+head(fitted)
+
+prdctn = (c(fitted[idxDate,10]))
+prdctn
+
+#predictor with highest coefficients
+highestSensitivity = 'USGG5YR'
+
+#result
+res<-list(Date=testDate,Coefficients=cfnts,
+          P_values=pvls,R_squared=rsqrd,Prediction=prdctn,
+          HighSensitivity=highestSensitivity)
+
+```
+
+Look at pairwise X-Y plots of regression coefficients for the 3M, 5Yr and 30Yr yields as inputs.
+
+```{r}
+# Pairs plot of Coefficients
+pairs(Coefficients)
+```
+
+```{r}
+res
+```
+
+# PCA

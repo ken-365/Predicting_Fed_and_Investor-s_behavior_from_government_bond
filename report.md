@@ -98,3 +98,415 @@ implemented easing policy (reducing rates) or tightening policy
 **History of Interest Rates and Output**
 
 ![](report_files/figure-gfm/5-1.png)<!-- -->
+
+# Data preparation
+
+**from Data exploration we can see that there are NAs in Easing and
+Tightening** Make column “Tightening” equal to 1 during tightening
+periods and 0 otherwise.
+
+# Modelling
+
+## Linear regression model
+
+**Fit 7 regression models, in each of them input variable of interest
+rate is response and Output1 is the single predictor**
+
+``` r
+#Fit 7 simple regression models
+mUSGG3M = lm(AssignmentData$USGG3M ~ Output1)
+mUSGG6M = lm(AssignmentData$USGG6M ~ Output1)
+mUSGG2YR = lm(AssignmentData$USGG2YR ~ Output1)
+mUSGG3YR = lm(AssignmentData$USGG3YR ~ Output1)
+mUSGG5YR = lm(AssignmentData$USGG5YR ~ Output1)
+mUSGG10YR = lm(AssignmentData$USGG10YR ~ Output1)
+mUSGG30YR = lm(AssignmentData$USGG30YR ~ Output1)
+```
+
+Here is significance of the estimated parameters and the model
+**mUSGG3M** as a whole, proportion of explained correlation.
+
+    ##       Total.Variance Unexplained.Variance 
+    ##           76.8044379            0.4374763
+
+and coefficient
+
+    ## (Intercept)     Output1 
+    ##   4.6751341   0.3839609
+
+Plot the output variable together with the fitted values.
+
+![](report_files/figure-gfm/9-1.png)<!-- -->
+
+Collect all slopes and intercepts in one matrix called
+simpleRegressionResults and keep this matrix
+
+    ##          regrIntercepts    Slopes
+    ## USGG3M         4.675134 0.3839609
+    ## USGG6M         4.844370 0.3901870
+    ## USGG2YR        5.438888 0.4151851
+    ## USGG3Y         5.644458 0.4063541
+    ## USGG3Y.1       5.644458 0.4063541
+    ## USGG5Y         6.009421 0.3860610
+    ## USGG10Y        6.481316 0.3477544
+    ## USGG30Y        6.869355 0.3047124
+
+Use fitted models for newPredictor with file
+‘Output\_for\_prediction.csv’
+
+``` r
+#Use function predict() to predict 7 interest rates for the value of newPredictor
+prUSGG3M=predict(mUSGG3M,newdata=newPredictor)
+prUSGG6M=predict(mUSGG6M,newdata=newPredictor)
+prUSGG2YR=predict(mUSGG2YR,newdata=newPredictor)
+prUSGG3YR=predict(mUSGG3YR,newdata=newPredictor)
+prUSGG5YR=predict(mUSGG5YR,newdata=newPredictor)
+prUSGG10YR=predict(mUSGG10YR,newdata=newPredictor)
+prUSGG30YR=predict(mUSGG30YR,newdata=newPredictor)
+```
+
+**examine
+    predicted.values**
+
+    ##          1          1          1          1          1          1 
+    ## 0.08403873 0.17882799 0.47443916 0.78560235 1.39321456 2.32314886 
+    ##          1 
+    ## 3.22584959
+
+## Logistic regression model
+
+**Plot the data and the binary output variable representing easing (0)
+and tightening (1) periods.**
+
+![](report_files/figure-gfm/15-1.png)<!-- -->
+
+Estimate logistic regression with 3M yields as predictor and Tightening
+as
+output.
+
+``` r
+LogisticModel_3M<-glm(Tightening~USGG3M,family=binomial(link=logit),AssignmentDataLogistic)
+summary(LogisticModel_3M)
+```
+
+    ## 
+    ## Call:
+    ## glm(formula = Tightening ~ USGG3M, family = binomial(link = logit), 
+    ##     data = AssignmentDataLogistic)
+    ## 
+    ## Deviance Residuals: 
+    ##     Min       1Q   Median       3Q      Max  
+    ## -1.4239  -0.9014  -0.7737   1.3548   1.6743  
+    ## 
+    ## Coefficients:
+    ##             Estimate Std. Error z value Pr(>|z|)    
+    ## (Intercept) -2.15256    0.17328 -12.422   <2e-16 ***
+    ## USGG3M       0.18638    0.02144   8.694   <2e-16 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## (Dispersion parameter for binomial family taken to be 1)
+    ## 
+    ##     Null deviance: 2983.5  on 2357  degrees of freedom
+    ## Residual deviance: 2904.8  on 2356  degrees of freedom
+    ## AIC: 2908.8
+    ## 
+    ## Number of Fisher Scoring iterations: 4
+
+Plot the data, the response and the predicted probability of tightening.
+
+![](report_files/figure-gfm/16-1.png)<!-- -->
+
+Now use all inputs as predictors for logistic regression. Name the model
+LogisticModel\_All.
+
+``` r
+LogisticModel_All = glm(Tightening~USGG3M+USGG6M+USGG2YR+USGG3YR +USGG5YR +USGG10YR +USGG30YR  ,family=binomial(link=logit),AssignmentDataLogistic)
+summary(LogisticModel_All)
+```
+
+    ## 
+    ## Call:
+    ## glm(formula = Tightening ~ USGG3M + USGG6M + USGG2YR + USGG3YR + 
+    ##     USGG5YR + USGG10YR + USGG30YR, family = binomial(link = logit), 
+    ##     data = AssignmentDataLogistic)
+    ## 
+    ## Deviance Residuals: 
+    ##     Min       1Q   Median       3Q      Max  
+    ## -2.2113  -0.8595  -0.5935   1.1306   2.5530  
+    ## 
+    ## Coefficients:
+    ##             Estimate Std. Error z value Pr(>|z|)    
+    ## (Intercept)  -4.7552     0.4312 -11.029  < 2e-16 ***
+    ## USGG3M       -3.3456     0.2666 -12.548  < 2e-16 ***
+    ## USGG6M        4.1559     0.3748  11.089  < 2e-16 ***
+    ## USGG2YR       3.9460     0.7554   5.224 1.75e-07 ***
+    ## USGG3YR      -3.4642     0.9340  -3.709 0.000208 ***
+    ## USGG5YR      -3.2115     0.7795  -4.120 3.79e-05 ***
+    ## USGG10YR     -0.9705     0.9764  -0.994 0.320214    
+    ## USGG30YR      3.3254     0.6138   5.418 6.04e-08 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## (Dispersion parameter for binomial family taken to be 1)
+    ## 
+    ##     Null deviance: 2983.5  on 2357  degrees of freedom
+    ## Residual deviance: 2629.6  on 2350  degrees of freedom
+    ## AIC: 2645.6
+    ## 
+    ## Number of Fisher Scoring iterations: 4
+
+Plot the data, predicted probability of tightening and the response.
+
+![](report_files/figure-gfm/20-1.png)<!-- -->
+
+Calculate and plot log-odds and probabilities. Compare probabilities
+with fitted values.
+
+``` r
+# Calculate odds
+Log.Odds<-predict(LogisticModel_All)     # predict log-odds
+Probabilities<-1/(exp(-Log.Odds)+1)      # predict probabilities
+```
+
+![](report_files/figure-gfm/26-1.png)<!-- -->
+
+Use logistic regression to predict probabilities of tightening for new
+input data.
+
+``` r
+# New Predictors
+(newPredictors<-unname(unlist(AssignmentDataLogistic[1,1:7])))
+```
+
+    ## [1] 12.690 12.870 14.119 14.440 14.614 14.572 14.412
+
+``` r
+predict(LogisticModel_All,newdata=data3,type='response')
+```
+
+    ##         1 
+    ## 0.2075972
+
+``` r
+summary(LogisticModel_All)
+```
+
+    ## 
+    ## Call:
+    ## glm(formula = Tightening ~ USGG3M + USGG6M + USGG2YR + USGG3YR + 
+    ##     USGG5YR + USGG10YR + USGG30YR, family = binomial(link = logit), 
+    ##     data = AssignmentDataLogistic)
+    ## 
+    ## Deviance Residuals: 
+    ##     Min       1Q   Median       3Q      Max  
+    ## -2.2113  -0.8595  -0.5935   1.1306   2.5530  
+    ## 
+    ## Coefficients:
+    ##             Estimate Std. Error z value Pr(>|z|)    
+    ## (Intercept)  -4.7552     0.4312 -11.029  < 2e-16 ***
+    ## USGG3M       -3.3456     0.2666 -12.548  < 2e-16 ***
+    ## USGG6M        4.1559     0.3748  11.089  < 2e-16 ***
+    ## USGG2YR       3.9460     0.7554   5.224 1.75e-07 ***
+    ## USGG3YR      -3.4642     0.9340  -3.709 0.000208 ***
+    ## USGG5YR      -3.2115     0.7795  -4.120 3.79e-05 ***
+    ## USGG10YR     -0.9705     0.9764  -0.994 0.320214    
+    ## USGG30YR      3.3254     0.6138   5.418 6.04e-08 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+    ## 
+    ## (Dispersion parameter for binomial family taken to be 1)
+    ## 
+    ##     Null deviance: 2983.5  on 2357  degrees of freedom
+    ## Residual deviance: 2629.6  on 2350  degrees of freedom
+    ## AIC: 2645.6
+    ## 
+    ## Number of Fisher Scoring iterations: 4
+
+## Comparing regression models
+
+**Compare linear regression models with Output1 as response and
+different combinations of predictors.**
+
+Comparing Full model with null model
+
+``` r
+#complete model 
+model_all = lm(Output1~USGG3M+USGG6M+USGG2YR+USGG3YR +USGG5YR +USGG10YR +USGG30YR,AssignmentDataRegressionComparison)
+#null model
+model_null = lm(Output1~1,AssignmentDataRegressionComparison)
+```
+
+Compare AIC Value
+
+``` r
+anova(model_all,model_null)
+```
+
+    ## Analysis of Variance Table
+    ## 
+    ## Model 1: Output1 ~ USGG3M + USGG6M + USGG2YR + USGG3YR + USGG5YR + USGG10YR + 
+    ##     USGG30YR
+    ## Model 2: Output1 ~ 1
+    ##   Res.Df    RSS Df Sum of Sq        F    Pr(>F)    
+    ## 1   8292      0                                    
+    ## 2   8299 637400 -7   -637400 3.73e+22 < 2.2e-16 ***
+    ## ---
+    ## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+
+``` r
+c(Full=AIC(model_all),Null=AIC(model_null))
+```
+
+    ##       Full       Null 
+    ## -313034.13   59589.86
+
+Lets compare nested model using anove, small model (Predict output with
+USGG3M) with big model (Predict output with USGG3M+ other rates)
+
+``` r
+#Given US Treasury rate = USGG3M
+#Let the given rate be testRate. Let additionalRate be one of the remaining rates
+
+mUSGG3M.2 = lm(Output1 ~ USGG3M , AssignmentData)
+mUSGG6M.2 = lm(Output1 ~ USGG3M+USGG6M , AssignmentData)
+mUSGG2YR.2 = lm(Output1 ~ USGG3M+USGG2YR , AssignmentData)
+mUSGG3YR.2 = lm(Output1 ~ USGG3M+USGG3YR , AssignmentData)
+mUSGG5YR.2 = lm(Output1 ~ USGG3M+USGG5YR , AssignmentData)
+mUSGG10YR.2 = lm(Output1 ~ USGG3M+USGG10YR , AssignmentData)
+mUSGG30YR.2 = lm(Output1 ~ USGG3M+USGG30YR , AssignmentData)
+
+SumSq = c(anova(mUSGG3M.2,mUSGG6M.2)$'Sum of Sq'[2],
+anova(mUSGG3M.2,mUSGG2YR.2)$'Sum of Sq'[2],
+anova(mUSGG3M.2,mUSGG3YR.2)$'Sum of Sq'[2],
+anova(mUSGG3M.2,mUSGG5YR.2)$'Sum of Sq'[2],
+anova(mUSGG3M.2,mUSGG10YR.2)$'Sum of Sq'[2],
+anova(mUSGG3M.2,mUSGG30YR.2)$'Sum of Sq'[2])
+
+AIC = c(
+AIC(mUSGG6M.2),
+AIC(mUSGG2YR.2),
+AIC(mUSGG3YR.2),
+AIC(mUSGG5YR.2),
+AIC(mUSGG10YR.2),
+AIC(mUSGG30YR.2))
+AIC
+```
+
+    ## [1] 27927.798 12178.727  5276.954 -6856.005  5106.432 12894.093
+
+Compare SumSq and AIC explain by bigger model
+
+``` r
+SumSq
+```
+
+    ## [1]  9663.664 21601.990 22791.011 23495.322 22809.656 21412.436
+
+``` r
+AIC
+```
+
+    ## [1] 27927.798 12178.727  5276.954 -6856.005  5106.432 12894.093
+
+## Rolling Window Analysis
+
+Set window width and window shift parameters for rolling window.
+
+``` r
+Window.width<-20; Window.shift<-5
+```
+
+Find mean for rolling window.
+
+``` r
+# Means
+all.means<-rollapply(AssignmentDataRegressionComparison,width=Window.width,
+                     by=Window.shift,by.column=TRUE, mean)
+head(all.means)
+```
+
+    ##       USGG3M  USGG6M USGG2YR USGG3YR USGG5YR USGG10YR USGG30YR  Output1
+    ## [1,] 15.0405 14.0855 13.2795 12.9360 12.7825  12.5780  12.1515 20.14842
+    ## [2,] 15.1865 14.1440 13.4855 13.1085 12.9310  12.7370  12.3370 20.55208
+    ## [3,] 15.2480 14.2755 13.7395 13.3390 13.1500  12.9480  12.5500 21.04895
+    ## [4,] 14.9345 14.0780 13.7750 13.4765 13.2385  13.0515  12.6610 21.02611
+    ## [5,] 14.7545 14.0585 13.9625 13.6890 13.4600  13.2295  12.8335 21.31356
+    ## [6,] 14.6025 14.0115 14.0380 13.7790 13.5705  13.3050  12.8890 21.39061
+
+Plot the rolling means with the original 3-month rates data
+
+``` r
+Count<-1:dim(AssignmentDataRegressionComparison)[1]
+Rolling.window.matrix<-rollapply(Count,width=Window.width,by=Window.shift,by.column=FALSE,FUN=function(z) z)
+```
+
+    ##  [1] 10 15 20 25 30 35 40 45 50 55
+
+    ##       [,1]    [,2]
+    ##  [1,]    1      NA
+    ##  [2,]    2      NA
+    ##  [3,]    3      NA
+    ##  [4,]    4      NA
+    ##  [5,]    5      NA
+    ##  [6,]    6      NA
+    ##  [7,]    7      NA
+    ##  [8,]    8      NA
+    ##  [9,]    9      NA
+    ## [10,]   10 15.0405
+    ## [11,]   11      NA
+    ## [12,]   12      NA
+    ## [13,]   13      NA
+    ## [14,]   14      NA
+    ## [15,]   15 15.1865
+    ## [16,]   16      NA
+    ## [17,]   17      NA
+    ## [18,]   18      NA
+    ## [19,]   19      NA
+    ## [20,]   20 15.2480
+    ## [21,]   21      NA
+    ## [22,]   22      NA
+    ## [23,]   23      NA
+    ## [24,]   24      NA
+    ## [25,]   25 14.9345
+
+![](report_files/figure-gfm/55-1.png)<!-- -->
+
+Use rolling apply to find Coefficients, R.squared, P-value, and predited
+value for any specific date.
+
+Look at pairwise X-Y plots of regression coefficients for the 3M, 5Yr
+and 30Yr yields as inputs.
+
+``` r
+# Pairs plot of Coefficients
+pairs(Coefficients)
+```
+
+![](report_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
+
+``` r
+res
+```
+
+    ## $Date
+    ## [1] "9/22/2005"
+    ## 
+    ## $Coefficients
+    ##  (Intercept)       USGG3M      USGG5YR     USGG30YR 
+    ## -14.12217691   0.42894717   2.01322980   0.02093892 
+    ## 
+    ## $P_values
+    ##  (Intercept)       USGG3M      USGG5YR     USGG30YR 
+    ## 3.647568e-20 3.080123e-06 1.548548e-16 8.175210e-01 
+    ## 
+    ## $R_squared
+    ## [1] 0.9983905
+    ## 
+    ## $Prediction
+    ## [1] -4.517689
+    ## 
+    ## $HighSensitivity
+    ## [1] "USGG5YR"
+
+# PCA
