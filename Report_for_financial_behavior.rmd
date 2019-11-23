@@ -465,7 +465,7 @@ res<-list(Date=testDate,Coefficients=cfnts,
 
 Look at pairwise X-Y plots of regression coefficients for the 3M, 5Yr and 30Yr yields as inputs.
 
-```{r}
+```{r 33}
 # Pairs plot of Coefficients
 pairs(Coefficients)
 ```
@@ -475,3 +475,77 @@ res
 ```
 
 # PCA
+
+*Treasury yield has high correlated to each other that makes our model risky for Multicollinearity. I will use PCA to decompose factors and loadings to solve this problem and at the same time preserve relationship from each Treasury yield and use in palce of predictors*
+
+```{r}
+AssignmentDataPCA<-AssignmentData[,1:7]
+dim(AssignmentDataPCA)
+```
+
+Explore the dimensionality of the set of 3M, 2Y and 5Y yields.
+
+```{r}
+# Select 3 variables. Explore dimensionality and correlation 
+AssignmentData.3M_2Y_5Y<-AssignmentDataPCA[,c(1,3,5)]
+ggpairs(AssignmentData.3M_2Y_5Y)
+library(rgl);rgl.points(AssignmentData.3M_2Y_5Y)
+```
+
+Load data for date we want to see change
+
+```{r}
+data <- readRDS(paste(dataPath,'StatisticalAnalysis_Course_Assignment_5_Data.rds',sep = '/'))
+data
+Maturities<-c(.25,.5,2,3,5,10,30)
+```
+
+See importance of factors.
+
+```{r}
+Eigen.Decomposition = princomp(AssignmentDataPCA)
+Eigen.Decomposition
+```
+
+Find loadings and factors from principal component
+
+```{r}
+#find loadings
+Loadings = Eigen.Decomposition$loadings
+#find factors 
+Factors = Eigen.Decomposition$scores
+```
+
+Change sign and plot each factors
+```{r 88, echo=FALSE}
+Loadings[,1]<--Loadings[,1]
+Factors[,1]<--Factors[,1]
+
+matplot(Factors,type="l",col=c("black","blue","orange"),lty=1,lwd=3,main="Factors After Sign Change")
+legend("topright",legend=c("F1","F2","F3"),col=c("black","blue","orange"),lty=1)
+
+matplot(Maturities,Loadings,type="l",lty=1,col=c("black","blue","orange"),lwd=3,main="Loadings After Sign Change")
+legend("bottomright",legend=c("L1","L2","L3"),col=c("black","blue","orange"),lty=1)
+
+```
+
+Analyze the adjustments that each factor makes to the term curve.
+
+```{r 46, echo=TRUE}
+OldCurve<-AssignmentDataPCA[135,]
+NewCurve<-AssignmentDataPCA[136,]
+CurveChange<-NewCurve-OldCurve
+FactorsChange<-Factors[136,]-Factors[135,]
+ModelCurveAdjustment.1Factor<-OldCurve+t(Loadings[,1])*FactorsChange[1]
+ModelCurveAdjustment.2Factors<-OldCurve+t(Loadings[,1])*FactorsChange[1]+t(Loadings[,2])*FactorsChange[2]
+ModelCurveAdjustment.3Factors<-OldCurve+t(Loadings[,1])*FactorsChange[1]+t(Loadings[,2])*FactorsChange[2]+
+  t(Loadings[,3])*FactorsChange[3]
+matplot(Maturities,
+        t(rbind(OldCurve,NewCurve,ModelCurveAdjustment.1Factor,ModelCurveAdjustment.2Factors,
+                ModelCurveAdjustment.3Factors)),
+        type="l",lty=c(1,1,2,2,2),col=c("black","red","green","blue","magenta"),lwd=3,ylab="Curve Adjustment")
+legend(x="topright",c("Old Curve","New Curve","1-Factor Adj.","2-Factor Adj.",
+                      "3-Factor Adj."),lty=c(1,1,2,2,2),lwd=3,col=c("black","red","green","blue","magenta"))
+
+```
+

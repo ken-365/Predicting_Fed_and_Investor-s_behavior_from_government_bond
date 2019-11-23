@@ -93,11 +93,11 @@ implemented easing policy (reducing rates) or tightening policy
 
 **History of Interest Rates**
 
-![](report_files/figure-gfm/4-1.png)<!-- -->
+![](Report_for_financial_behavior_files/figure-gfm/4-1.png)<!-- -->
 
 **History of Interest Rates and Output**
 
-![](report_files/figure-gfm/5-1.png)<!-- -->
+![](Report_for_financial_behavior_files/figure-gfm/5-1.png)<!-- -->
 
 # Data preparation
 
@@ -136,7 +136,7 @@ and coefficient
 
 Plot the output variable together with the fitted values.
 
-![](report_files/figure-gfm/9-1.png)<!-- -->
+![](Report_for_financial_behavior_files/figure-gfm/9-1.png)<!-- -->
 
 Collect all slopes and intercepts in one matrix called
 simpleRegressionResults and keep this matrix
@@ -178,7 +178,7 @@ prUSGG30YR=predict(mUSGG30YR,newdata=newPredictor)
 **Plot the data and the binary output variable representing easing (0)
 and tightening (1) periods.**
 
-![](report_files/figure-gfm/15-1.png)<!-- -->
+![](Report_for_financial_behavior_files/figure-gfm/15-1.png)<!-- -->
 
 Estimate logistic regression with 3M yields as predictor and Tightening
 as
@@ -215,7 +215,7 @@ summary(LogisticModel_3M)
 
 Plot the data, the response and the predicted probability of tightening.
 
-![](report_files/figure-gfm/16-1.png)<!-- -->
+![](Report_for_financial_behavior_files/figure-gfm/16-1.png)<!-- -->
 
 Now use all inputs as predictors for logistic regression. Name the model
 LogisticModel\_All.
@@ -258,7 +258,7 @@ summary(LogisticModel_All)
 
 Plot the data, predicted probability of tightening and the response.
 
-![](report_files/figure-gfm/20-1.png)<!-- -->
+![](Report_for_financial_behavior_files/figure-gfm/20-1.png)<!-- -->
 
 Calculate and plot log-odds and probabilities. Compare probabilities
 with fitted values.
@@ -269,7 +269,7 @@ Log.Odds<-predict(LogisticModel_All)     # predict log-odds
 Probabilities<-1/(exp(-Log.Odds)+1)      # predict probabilities
 ```
 
-![](report_files/figure-gfm/26-1.png)<!-- -->
+![](Report_for_financial_behavior_files/figure-gfm/26-1.png)<!-- -->
 
 Use logistic regression to predict probabilities of tightening for new
 input data.
@@ -470,7 +470,7 @@ Rolling.window.matrix<-rollapply(Count,width=Window.width,by=Window.shift,by.col
     ## [24,]   24      NA
     ## [25,]   25 14.9345
 
-![](report_files/figure-gfm/55-1.png)<!-- -->
+![](Report_for_financial_behavior_files/figure-gfm/55-1.png)<!-- -->
 
 Use rolling apply to find Coefficients, R.squared, P-value, and predited
 value for any specific date.
@@ -483,7 +483,7 @@ and 30Yr yields as inputs.
 pairs(Coefficients)
 ```
 
-![](report_files/figure-gfm/unnamed-chunk-26-1.png)<!-- -->
+![](Report_for_financial_behavior_files/figure-gfm/33-1.png)<!-- -->
 
 ``` r
 res
@@ -510,3 +510,102 @@ res
     ## [1] "USGG5YR"
 
 # PCA
+
+*Treasury yield has high correlated to each other that makes our model
+risky for Multicollinearity. I will use PCA to decompose factors and
+loadings to solve this problem and at the same time preserve
+relationship from each Treasury yield and use in palce of predictors*
+
+``` r
+AssignmentDataPCA<-AssignmentData[,1:7]
+dim(AssignmentDataPCA)
+```
+
+    ## [1] 8300    7
+
+Explore the dimensionality of the set of 3M, 2Y and 5Y yields.
+
+``` r
+# Select 3 variables. Explore dimensionality and correlation 
+AssignmentData.3M_2Y_5Y<-AssignmentDataPCA[,c(1,3,5)]
+ggpairs(AssignmentData.3M_2Y_5Y)
+```
+
+![](Report_for_financial_behavior_files/figure-gfm/unnamed-chunk-28-1.png)<!-- -->
+
+``` r
+library(rgl);rgl.points(AssignmentData.3M_2Y_5Y)
+```
+
+Load data for date we want to see
+change
+
+``` r
+data <- readRDS(paste(dataPath,'StatisticalAnalysis_Course_Assignment_5_Data.rds',sep = '/'))
+data
+```
+
+    ## $testDate
+    ## [1] "8/17/2012"
+    ## 
+    ## $testMaturity
+    ## [1] "USGG6M"
+    ## 
+    ## $factorsChanges
+    ##      Comp.1      Comp.2      Comp.3 
+    ##  0.01994752 -0.10048877  0.01115206
+
+``` r
+Maturities<-c(.25,.5,2,3,5,10,30)
+```
+
+See importance of factors.
+
+``` r
+Eigen.Decomposition = princomp(AssignmentDataPCA)
+Eigen.Decomposition
+```
+
+    ## Call:
+    ## princomp(x = AssignmentDataPCA)
+    ## 
+    ## Standard deviations:
+    ##     Comp.1     Comp.2     Comp.3     Comp.4     Comp.5     Comp.6 
+    ## 8.76328616 1.24552572 0.34980817 0.11896932 0.09121611 0.04741989 
+    ##     Comp.7 
+    ## 0.03944169 
+    ## 
+    ##  7  variables and  8300 observations.
+
+Find loadings and factors from principal component
+
+``` r
+#find loadings
+Loadings = Eigen.Decomposition$loadings
+#find factors 
+Factors = Eigen.Decomposition$scores
+```
+
+Change sign and plot each factors
+![](Report_for_financial_behavior_files/figure-gfm/88-1.png)<!-- -->![](Report_for_financial_behavior_files/figure-gfm/88-2.png)<!-- -->
+
+Analyze the adjustments that each factor makes to the term curve.
+
+``` r
+OldCurve<-AssignmentDataPCA[135,]
+NewCurve<-AssignmentDataPCA[136,]
+CurveChange<-NewCurve-OldCurve
+FactorsChange<-Factors[136,]-Factors[135,]
+ModelCurveAdjustment.1Factor<-OldCurve+t(Loadings[,1])*FactorsChange[1]
+ModelCurveAdjustment.2Factors<-OldCurve+t(Loadings[,1])*FactorsChange[1]+t(Loadings[,2])*FactorsChange[2]
+ModelCurveAdjustment.3Factors<-OldCurve+t(Loadings[,1])*FactorsChange[1]+t(Loadings[,2])*FactorsChange[2]+
+  t(Loadings[,3])*FactorsChange[3]
+matplot(Maturities,
+        t(rbind(OldCurve,NewCurve,ModelCurveAdjustment.1Factor,ModelCurveAdjustment.2Factors,
+                ModelCurveAdjustment.3Factors)),
+        type="l",lty=c(1,1,2,2,2),col=c("black","red","green","blue","magenta"),lwd=3,ylab="Curve Adjustment")
+legend(x="topright",c("Old Curve","New Curve","1-Factor Adj.","2-Factor Adj.",
+                      "3-Factor Adj."),lty=c(1,1,2,2,2),lwd=3,col=c("black","red","green","blue","magenta"))
+```
+
+![](Report_for_financial_behavior_files/figure-gfm/46-1.png)<!-- -->
